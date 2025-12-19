@@ -1,0 +1,80 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    container_name: master-server-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./docker/app/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    networks:
+      - master-server-network
+    depends_on:
+      - redis
+      - mysql
+
+  nginx:
+    image: nginx:alpine
+    container_name: master-server-nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - master-server-network
+    depends_on:
+      - app
+
+  redis:
+    image: redis:7-alpine
+    container_name: master-server-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - master-server-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: master-server-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-master_server}
+      MYSQL_USER: ${DB_USERNAME:-master_server}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootsecret}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - master-server-network
+
+  node:
+    image: node:20-alpine
+    container_name: master-server-node
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "5173:5173"
+    networks:
+      - master-server-network
+    profiles:
+      - dev
+
+networks:
+  master-server-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  mysql-data:
