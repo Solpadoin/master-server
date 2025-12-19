@@ -25,7 +25,7 @@ class GameInstanceController extends Controller
     private const MONITORING_TTL = 300; // 5 minutes
 
     /**
-     * Get monitoring data for all instances with server details.
+     * Get monitoring data for all instances (without server details).
      */
     public function monitoring(): JsonResponse
     {
@@ -37,29 +37,16 @@ class GameInstanceController extends Controller
             $serversKey = $instance->getServersRedisKey();
             $serversData = Redis::hgetall($serversKey);
 
-            $activeServers = [];
+            $serverCount = 0;
             $totalPlayers = 0;
 
-            foreach ($serversData as $serverId => $serverJson) {
+            foreach ($serversData as $serverJson) {
                 $server = json_decode($serverJson, true);
 
-                // Only include servers with heartbeat in last 5 minutes
+                // Only count servers with heartbeat in last 5 minutes
                 if (($server['last_heartbeat'] ?? 0) >= $staleThreshold) {
-                    $playerCount = (int) ($server['player_count'] ?? 0);
-                    $totalPlayers += $playerCount;
-
-                    $activeServers[] = [
-                        'server_id' => $serverId,
-                        'server_name' => $server['server_name'] ?? 'Unknown',
-                        'map' => $server['map'] ?? 'Unknown',
-                        'player_count' => $playerCount,
-                        'max_players' => (int) ($server['max_players'] ?? 0),
-                        'region' => $server['region'] ?? 'Unknown',
-                        'ip' => $server['ip'] ?? '',
-                        'port' => (int) ($server['port'] ?? 0),
-                        'last_heartbeat' => $server['last_heartbeat'] ?? 0,
-                        'last_heartbeat_ago' => now()->timestamp - ($server['last_heartbeat'] ?? 0),
-                    ];
+                    $serverCount++;
+                    $totalPlayers += (int) ($server['player_count'] ?? 0);
                 }
             }
 
@@ -68,9 +55,8 @@ class GameInstanceController extends Controller
                 'steam_app_id' => $instance->steam_app_id,
                 'name' => $instance->name,
                 'is_active' => $instance->is_active,
-                'server_count' => count($activeServers),
+                'server_count' => $serverCount,
                 'total_players' => $totalPlayers,
-                'servers' => $activeServers,
             ];
         }
 
@@ -79,6 +65,66 @@ class GameInstanceController extends Controller
             'meta' => [
                 'ttl_seconds' => self::MONITORING_TTL,
                 'generated_at' => now()->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /**
+     * Get paginated servers for a specific instance.
+     */
+    public function servers(int $id): JsonResponse
+    {
+        $instance = $this->gameInstanceService->getById($id);
+
+        if (! $instance) {
+            return response()->json([
+                'error' => 'Not Found',
+                'message' => 'Game instance not found.',
+            ], 404);
+        }
+
+        $page = (int) request()->get('page', 1);
+        $perPage = (int) request()->get('per_page', 50);
+        $staleThreshold = now()->timestamp - self::MONITORING_TTL;
+
+        $serversKey = $instance->getServersRedisKey();
+        $serversData = Redis::hgetall($serversKey);
+
+        // Filter active servers
+        $activeServers = [];
+        foreach ($serversData as $serverId => $serverJson) {
+            $server = json_decode($serverJson, true);
+
+            if (($server['last_heartbeat'] ?? 0) >= $staleThreshold) {
+                $activeServers[] = [
+                    'server_id' => $serverId,
+                    'server_name' => $server['server_name'] ?? 'Unknown',
+                    'map' => $server['map'] ?? 'Unknown',
+                    'player_count' => (int) ($server['player_count'] ?? 0),
+                    'max_players' => (int) ($server['max_players'] ?? 0),
+                    'region' => $server['region'] ?? 'Unknown',
+                    'ip' => $server['ip'] ?? '',
+                    'port' => (int) ($server['port'] ?? 0),
+                    'last_heartbeat' => $server['last_heartbeat'] ?? 0,
+                    'last_heartbeat_ago' => now()->timestamp - ($server['last_heartbeat'] ?? 0),
+                ];
+            }
+        }
+
+        $total = count($activeServers);
+        $totalPages = (int) ceil($total / $perPage);
+        $offset = ($page - 1) * $perPage;
+
+        // Paginate
+        $paginatedServers = array_slice($activeServers, $offset, $perPage);
+
+        return response()->json([
+            'data' => $paginatedServers,
+            'meta' => [
+                'current_page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'total_pages' => $totalPages,
             ],
         ]);
     }
@@ -254,28 +300,37 @@ class GameInstanceController extends Controller
         $prefix = $instance->getRedisKeyPrefix();
         $totalBytes = 0;
 
-        // Get all keys for this instance
+        // Get all keys for this instance (returns keys with Laravel prefix)
         $keys = Redis::keys("{$prefix}:*");
 
-        foreach ($keys as $key) {
-            // Remove Redis database prefix if present
-            $cleanKey = preg_replace('/^[^:]+:/', '', $key) ?: $key;
+        // Get Predis client for raw commands
+        $predis = Redis::connection()->client();
 
-            // Get memory usage for each key (requires Redis 4.0+)
+        foreach ($keys as $key) {
             try {
-                $memory = Redis::command('MEMORY', ['USAGE', $cleanKey]);
+                // Use executeRaw to run MEMORY USAGE command
+                // The key from KEYS already includes the Laravel prefix
+                $memory = $predis->executeRaw(['MEMORY', 'USAGE', $key]);
                 if ($memory !== null) {
                     $totalBytes += (int) $memory;
                 }
             } catch (\Exception $e) {
                 // Fallback: estimate based on serialized length
-                $type = Redis::type($cleanKey);
-                if ($type === 'hash') {
-                    $data = Redis::hgetall($cleanKey);
-                    $totalBytes += strlen(serialize($data));
-                } elseif ($type === 'string') {
-                    $data = Redis::get($cleanKey);
-                    $totalBytes += strlen($data ?? '');
+                try {
+                    // Strip the Laravel prefix to use with Redis facade
+                    $redisPrefix = config('database.redis.options.prefix', '');
+                    $cleanKey = str_replace($redisPrefix, '', $key);
+
+                    $type = Redis::type($cleanKey);
+                    if ($type === 'hash' || $type === 5) {
+                        $data = Redis::hgetall($cleanKey);
+                        $totalBytes += strlen(serialize($data));
+                    } elseif ($type === 'string' || $type === 1) {
+                        $data = Redis::get($cleanKey);
+                        $totalBytes += strlen($data ?? '');
+                    }
+                } catch (\Exception $e2) {
+                    // Skip this key if we can't read it
                 }
             }
         }

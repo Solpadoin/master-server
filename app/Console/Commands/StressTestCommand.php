@@ -270,21 +270,32 @@ class StressTestCommand extends Command
         $prefix = $instance->getRedisKeyPrefix();
         $totalBytes = 0;
 
+        // Get all keys for this instance (returns keys with Laravel prefix)
         $keys = Redis::keys("{$prefix}:*");
 
-        foreach ($keys as $key) {
-            $cleanKey = preg_replace('/^[^:]+:/', '', $key) ?: $key;
+        // Get Predis client for raw commands
+        $predis = Redis::connection()->client();
 
+        foreach ($keys as $key) {
             try {
-                $memory = Redis::command('MEMORY', ['USAGE', $cleanKey]);
+                // Use executeRaw to run MEMORY USAGE command
+                $memory = $predis->executeRaw(['MEMORY', 'USAGE', $key]);
                 if ($memory !== null) {
                     $totalBytes += (int) $memory;
                 }
             } catch (\Exception $e) {
-                $type = Redis::type($cleanKey);
-                if ($type === 'hash') {
-                    $data = Redis::hgetall($cleanKey);
-                    $totalBytes += strlen(serialize($data));
+                // Fallback: estimate based on serialized length
+                try {
+                    $redisPrefix = config('database.redis.options.prefix', '');
+                    $cleanKey = str_replace($redisPrefix, '', $key);
+
+                    $type = Redis::type($cleanKey);
+                    if ($type === 'hash' || $type === 5) {
+                        $data = Redis::hgetall($cleanKey);
+                        $totalBytes += strlen(serialize($data));
+                    }
+                } catch (\Exception $e2) {
+                    // Skip
                 }
             }
         }

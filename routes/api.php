@@ -121,5 +121,9 @@ Route::prefix('v1')->group(function () {
         // Game Instance Stats (Dashboard data)
         Route::get('/instances/{id}/stats', [GameInstanceController::class, 'stats'])
             ->name('api.v1.admin.instances.stats');
+
+        // Game Instance Servers (Paginated)
+        Route::get('/instances/{id}/servers', [GameInstanceController::class, 'servers'])
+            ->name('api.v1.admin.instances.servers');
     });
 });

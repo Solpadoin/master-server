@@ -89,7 +89,7 @@
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/>
                 </svg>
-                {{ instance.server_count }}
+                {{ instance.server_count.toLocaleString() }}
               </span>
             </div>
             <div class="col-span-2 text-center">
@@ -100,7 +100,7 @@
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
                 </svg>
-                {{ instance.total_players }}
+                {{ instance.total_players.toLocaleString() }}
               </span>
             </div>
             <div class="col-span-2 flex items-center justify-center">
@@ -127,14 +127,32 @@
             v-if="expandedInstance === instance.id"
             class="border-t border-gray-700 bg-gray-900/50"
           >
-            <div v-if="instance.servers.length === 0" class="px-6 py-8 text-center">
+            <!-- Loading servers -->
+            <div v-if="serversLoading" class="px-6 py-8 text-center">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto mb-3"></div>
+              <p class="text-gray-400">Loading servers...</p>
+            </div>
+
+            <!-- No servers -->
+            <div v-else-if="servers.length === 0" class="px-6 py-8 text-center">
               <svg class="w-12 h-12 mx-auto text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
               </svg>
               <p class="text-gray-400">No active servers in the last 5 minutes</p>
             </div>
 
+            <!-- Server list -->
             <div v-else class="p-4">
+              <!-- Server count and pagination info -->
+              <div class="flex justify-between items-center mb-3 px-4">
+                <span class="text-sm text-gray-400">
+                  Showing {{ ((serversMeta.current_page - 1) * serversMeta.per_page) + 1 }}-{{ Math.min(serversMeta.current_page * serversMeta.per_page, serversMeta.total) }} of {{ serversMeta.total.toLocaleString() }} servers
+                </span>
+                <span v-if="serversMeta.total_pages > 1" class="text-sm text-gray-500">
+                  Page {{ serversMeta.current_page }} of {{ serversMeta.total_pages.toLocaleString() }}
+                </span>
+              </div>
+
               <!-- Server Table Header -->
               <div class="grid grid-cols-12 gap-2 px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <div class="col-span-3">Server Name</div>
@@ -148,7 +166,7 @@
               <!-- Server Rows -->
               <div class="space-y-1">
                 <div
-                  v-for="server in instance.servers"
+                  v-for="server in servers"
                   :key="server.server_id"
                   class="grid grid-cols-12 gap-2 px-4 py-3 bg-gray-800/50 rounded-lg text-sm items-center hover:bg-gray-800 transition-colors"
                 >
@@ -194,6 +212,47 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Pagination Controls -->
+              <div v-if="serversMeta.total_pages > 1" class="flex justify-center items-center space-x-2 mt-4 pt-4 border-t border-gray-700">
+                <!-- Previous Button -->
+                <button
+                  @click.stop="goToPage(serversMeta.current_page - 1)"
+                  :disabled="serversMeta.current_page === 1 || serversLoading"
+                  class="px-3 py-1 rounded bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                  </svg>
+                </button>
+
+                <!-- Page Numbers -->
+                <template v-for="page in getPageNumbers()" :key="page">
+                  <span v-if="page === '...'" class="px-2 text-gray-500">...</span>
+                  <button
+                    v-else
+                    @click.stop="goToPage(page)"
+                    :disabled="serversLoading"
+                    class="px-3 py-1 rounded transition-colors"
+                    :class="serversMeta.current_page === page
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-gray-700 text-gray-300 hover:bg-gray-600'"
+                  >
+                    {{ page }}
+                  </button>
+                </template>
+
+                <!-- Next Button -->
+                <button
+                  @click.stop="goToPage(serversMeta.current_page + 1)"
+                  :disabled="serversMeta.current_page === serversMeta.total_pages || serversLoading"
+                  class="px-3 py-1 rounded bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -219,6 +278,16 @@ const meta = reactive({
   generated_at: null,
 });
 
+// Server data for expanded instance
+const servers = ref([]);
+const serversLoading = ref(false);
+const serversMeta = reactive({
+  current_page: 1,
+  per_page: 50,
+  total: 0,
+  total_pages: 0,
+});
+
 let refreshInterval = null;
 
 const fetchMonitoring = async () => {
@@ -237,8 +306,69 @@ const fetchMonitoring = async () => {
   }
 };
 
-const toggleExpand = (instanceId) => {
-  expandedInstance.value = expandedInstance.value === instanceId ? null : instanceId;
+const fetchServers = async (instanceId, page = 1) => {
+  serversLoading.value = true;
+  try {
+    const response = await api.get(`/admin/instances/${instanceId}/servers?page=${page}&per_page=50`);
+    servers.value = response.data;
+    if (response.meta) {
+      serversMeta.current_page = response.meta.current_page;
+      serversMeta.per_page = response.meta.per_page;
+      serversMeta.total = response.meta.total;
+      serversMeta.total_pages = response.meta.total_pages;
+    }
+  } catch (error) {
+    console.error('Failed to fetch servers:', error);
+    servers.value = [];
+  } finally {
+    serversLoading.value = false;
+  }
+};
+
+const toggleExpand = async (instanceId) => {
+  if (expandedInstance.value === instanceId) {
+    expandedInstance.value = null;
+    servers.value = [];
+  } else {
+    expandedInstance.value = instanceId;
+    await fetchServers(instanceId, 1);
+  }
+};
+
+const goToPage = async (page) => {
+  if (page >= 1 && page <= serversMeta.total_pages && expandedInstance.value) {
+    await fetchServers(expandedInstance.value, page);
+  }
+};
+
+const getPageNumbers = () => {
+  const totalPages = serversMeta.total_pages;
+  const currentPage = serversMeta.current_page;
+  const pages = [];
+
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) {
+      pages.push(i);
+    }
+  } else {
+    pages.push(1);
+
+    if (currentPage > 3) {
+      pages.push('...');
+    }
+
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      pages.push(i);
+    }
+
+    if (currentPage < totalPages - 2) {
+      pages.push('...');
+    }
+
+    pages.push(totalPages);
+  }
+
+  return pages;
 };
 
 const getPlayerBarColor = (current, max) => {

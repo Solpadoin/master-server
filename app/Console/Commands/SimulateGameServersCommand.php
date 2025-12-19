@@ -13,7 +13,7 @@ class SimulateGameServersCommand extends Command
 {
     protected $signature = 'game:simulate
                             {--instance= : Specific instance ID to simulate (default: all active instances)}
-                            {--servers=5 : Number of servers to simulate}
+                            {--servers=25000 : Number of servers to simulate}
                             {--history : Generate 24h historical data}
                             {--clear : Clear existing simulation data first}';
 
