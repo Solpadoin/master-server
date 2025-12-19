@@ -1,16 +1,27 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { auth } from '../services/api';
 
 const routes = [
     {
         path: '/',
-        name: 'home',
-        component: () => import('../views/Home.vue'),
+        redirect: '/admin',
+    },
+    {
+        path: '/login',
+        name: 'login',
+        component: () => import('../views/Login.vue'),
+        meta: { guest: true },
     },
     {
         path: '/admin',
-        name: 'admin',
         component: () => import('../views/admin/Dashboard.vue'),
+        meta: { requiresAuth: true },
         children: [
+            {
+                path: '',
+                name: 'admin.home',
+                component: () => import('../views/admin/Home.vue'),
+            },
             {
                 path: 'games',
                 name: 'admin.games',
@@ -28,6 +39,19 @@ const routes = [
 const router = createRouter({
     history: createWebHistory(),
     routes,
+});
+
+// Navigation guard
+router.beforeEach((to, from, next) => {
+    const isAuthenticated = auth.isAuthenticated();
+
+    if (to.meta.requiresAuth && !isAuthenticated) {
+        next({ name: 'login' });
+    } else if (to.meta.guest && isAuthenticated) {
+        next({ name: 'admin.home' });
+    } else {
+        next();
+    }
 });
 
 export default router;

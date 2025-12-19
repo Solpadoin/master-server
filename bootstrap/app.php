@@ -20,6 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified' => \App\Http\Middleware\EnsureEmailIsVerified::class,
             'server.auth' => \App\Http\Middleware\ServerAuthentication::class,
             'game.scope' => \App\Http\Middleware\GameScopeMiddleware::class,
+            'setup.complete' => \App\Http\Middleware\EnsureSetupComplete::class,
+            'setup.incomplete' => \App\Http\Middleware\RedirectIfSetupComplete::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
