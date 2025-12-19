@@ -3,7 +3,7 @@
     <h1 class="text-2xl font-bold text-white mb-6">Dashboard</h1>
 
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
       <div class="bg-gray-800 rounded-xl p-6">
         <div class="flex items-center">
           <div class="w-12 h-12 rounded-lg bg-indigo-500/20 flex items-center justify-center mr-4">
@@ -13,22 +13,7 @@
           </div>
           <div>
             <p class="text-gray-400 text-sm">Active Servers</p>
-            <p class="text-2xl font-bold text-white">0</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-gray-800 rounded-xl p-6">
-        <div class="flex items-center">
-          <div class="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center mr-4">
-            <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </div>
-          <div>
-            <p class="text-gray-400 text-sm">Games</p>
-            <p class="text-2xl font-bold text-white">0</p>
+            <p class="text-2xl font-bold text-white">{{ loading ? '...' : stats.active_servers }}</p>
           </div>
         </div>
       </div>
@@ -42,7 +27,7 @@
           </div>
           <div>
             <p class="text-gray-400 text-sm">Instances</p>
-            <p class="text-2xl font-bold text-white">0</p>
+            <p class="text-2xl font-bold text-white">{{ loading ? '...' : stats.instances }}</p>
           </div>
         </div>
       </div>
@@ -53,22 +38,7 @@
       <h2 class="text-lg font-semibold text-white mb-4">Quick Actions</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <router-link
-          to="/admin/games"
-          class="flex items-center p-4 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors"
-        >
-          <div class="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center mr-4">
-            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-            </svg>
-          </div>
-          <div>
-            <p class="text-white font-medium">Add Game</p>
-            <p class="text-gray-400 text-sm">Register a new game</p>
-          </div>
-        </router-link>
-
-        <router-link
-          to="/admin/instances"
+          to="/admin/instances/create"
           class="flex items-center p-4 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors"
         >
           <div class="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center mr-4">
@@ -78,7 +48,22 @@
           </div>
           <div>
             <p class="text-white font-medium">Create Instance</p>
-            <p class="text-gray-400 text-sm">Define data structure</p>
+            <p class="text-gray-400 text-sm">Add a new game server instance</p>
+          </div>
+        </router-link>
+
+        <router-link
+          to="/admin/instances"
+          class="flex items-center p-4 bg-gray-700/50 hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          <div class="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center mr-4">
+            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-white font-medium">View Instances</p>
+            <p class="text-gray-400 text-sm">Manage existing instances</p>
           </div>
         </router-link>
       </div>
@@ -88,9 +73,36 @@
     <div class="mt-6 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-xl p-6">
       <h2 class="text-lg font-semibold text-white mb-2">Welcome to Master Server</h2>
       <p class="text-gray-300">
-        Your master server is ready to manage game servers. Start by adding a game, then create instances with custom data schemas.
-        Game servers can then register and send heartbeats to keep their status updated.
+        Your master server is ready to manage game servers. Create instances for your games,
+        and game servers can then register and send heartbeats to keep their status updated.
       </p>
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref, reactive, onMounted } from 'vue';
+import { api } from '../../services/api';
+
+const loading = ref(true);
+const stats = reactive({
+  active_servers: 0,
+  instances: 0,
+});
+
+const fetchDashboard = async () => {
+  try {
+    const response = await api.get('/admin/dashboard');
+    stats.active_servers = response.data.active_servers;
+    stats.instances = response.data.instances;
+  } catch (error) {
+    console.error('Failed to fetch dashboard:', error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchDashboard();
+});
+</script>

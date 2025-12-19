@@ -5,8 +5,7 @@ use App\Http\Controllers\Api\V1\GameServerController;
 use App\Http\Controllers\Api\V1\ServerHeartbeatController;
 use App\Http\Controllers\Api\V1\SetupController;
 use App\Http\Controllers\Api\V1\AuthController;
-use App\Http\Controllers\Api\V1\Admin\GameController;
-use App\Http\Controllers\Api\V1\Admin\InstanceController;
+use App\Http\Controllers\Api\V1\GameInstanceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -95,19 +94,32 @@ Route::prefix('v1')->group(function () {
     | Protected by Sanctum authentication.
     */
     Route::middleware(['auth:sanctum'])->prefix('admin')->group(function () {
-        // Game Management
-        Route::apiResource('games', GameController::class);
+        // Dashboard Overview
+        Route::get('/dashboard', [GameInstanceController::class, 'dashboard'])
+            ->name('api.v1.admin.dashboard');
 
-        // Instance Management
-        Route::apiResource('instances', InstanceController::class);
-        Route::put('/instances/{instance}/schema', [InstanceController::class, 'updateSchema'])
-            ->name('api.v1.admin.instances.schema');
+        // Monitoring
+        Route::get('/monitoring', [GameInstanceController::class, 'monitoring'])
+            ->name('api.v1.admin.monitoring');
 
-        // API Key Management for game servers
-        Route::post('/games/{game}/api-keys', [GameController::class, 'generateApiKey'])
-            ->name('api.v1.admin.games.api-keys.store');
+        // Game Instance Management
+        Route::get('/instances', [GameInstanceController::class, 'index'])
+            ->name('api.v1.admin.instances.index');
 
-        Route::delete('/games/{game}/api-keys/{apiKey}', [GameController::class, 'revokeApiKey'])
-            ->name('api.v1.admin.games.api-keys.destroy');
+        Route::post('/instances', [GameInstanceController::class, 'store'])
+            ->name('api.v1.admin.instances.store');
+
+        Route::get('/instances/{id}', [GameInstanceController::class, 'show'])
+            ->name('api.v1.admin.instances.show');
+
+        Route::put('/instances/{id}', [GameInstanceController::class, 'update'])
+            ->name('api.v1.admin.instances.update');
+
+        Route::delete('/instances/{id}', [GameInstanceController::class, 'destroy'])
+            ->name('api.v1.admin.instances.destroy');
+
+        // Game Instance Stats (Dashboard data)
+        Route::get('/instances/{id}/stats', [GameInstanceController::class, 'stats'])
+            ->name('api.v1.admin.instances.stats');
     });
 });

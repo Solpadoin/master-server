@@ -15,21 +15,21 @@
               class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
               :class="{ 'text-white bg-gray-700': $route.name === 'admin.home' }"
             >
-              Dashboard
-            </router-link>
-            <router-link
-              to="/admin/games"
-              class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-              :class="{ 'text-white bg-gray-700': $route.name === 'admin.games' }"
-            >
-              Games
+              Home
             </router-link>
             <router-link
               to="/admin/instances"
               class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-              :class="{ 'text-white bg-gray-700': $route.name === 'admin.instances' }"
+              :class="{ 'text-white bg-gray-700': $route.name === 'admin.instances' || $route.name === 'admin.instances.create' || $route.name === 'admin.instances.show' }"
             >
               Instances
+            </router-link>
+            <router-link
+              to="/admin/monitoring"
+              class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+              :class="{ 'text-white bg-gray-700': $route.name === 'admin.monitoring' }"
+            >
+              Monitoring
             </router-link>
 
             <!-- User Menu -->
