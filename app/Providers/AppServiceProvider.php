@@ -12,12 +12,16 @@ use App\Services\Contracts\ServerAuthenticationServiceInterface;
 use App\Services\Contracts\GameServiceInterface;
 use App\Services\Contracts\InstanceServiceInterface;
 use App\Services\Contracts\SetupServiceInterface;
+use App\Services\Contracts\GameInstanceServiceInterface;
+use App\Services\Contracts\GameStatsServiceInterface;
 use App\Services\Implementations\GameServerService;
 use App\Services\Implementations\GameCacheService;
 use App\Services\Implementations\ServerAuthenticationService;
 use App\Services\Implementations\GameService;
 use App\Services\Implementations\InstanceService;
 use App\Services\Implementations\SetupService;
+use App\Services\Implementations\GameInstanceService;
+use App\Services\Implementations\GameStatsService;
 use App\Repositories\Contracts\GameServerRepositoryInterface;
 use App\Repositories\Contracts\GameRepositoryInterface;
 use App\Repositories\Contracts\InstanceRepositoryInterface;
@@ -61,6 +65,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(GameServiceInterface::class, GameService::class);
         $this->app->bind(InstanceServiceInterface::class, InstanceService::class);
         $this->app->bind(SetupServiceInterface::class, SetupService::class);
+        $this->app->bind(GameInstanceServiceInterface::class, GameInstanceService::class);
+        $this->app->bind(GameStatsServiceInterface::class, GameStatsService::class);
     }
 
     /**

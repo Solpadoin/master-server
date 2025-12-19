@@ -23,14 +23,24 @@ const routes = [
                 component: () => import('../views/admin/Home.vue'),
             },
             {
-                path: 'games',
-                name: 'admin.games',
-                component: () => import('../views/admin/Games.vue'),
-            },
-            {
                 path: 'instances',
                 name: 'admin.instances',
                 component: () => import('../views/admin/Instances.vue'),
+            },
+            {
+                path: 'instances/create',
+                name: 'admin.instances.create',
+                component: () => import('../views/admin/CreateInstance.vue'),
+            },
+            {
+                path: 'instances/:id',
+                name: 'admin.instances.show',
+                component: () => import('../views/admin/InstanceDashboard.vue'),
+            },
+            {
+                path: 'monitoring',
+                name: 'admin.monitoring',
+                component: () => import('../views/admin/Monitoring.vue'),
             },
         ],
     },
