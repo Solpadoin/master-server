@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\Contracts\SetupServiceInterface;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -11,11 +12,34 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
+// Home route - redirect to setup if not complete
+Route::get('/', function (SetupServiceInterface $setupService) {
+    if (! $setupService->isSetupComplete()) {
+        return redirect('/setup');
+    }
+    return view('app');
 });
 
-// Catch-all for Vue.js SPA routing
-Route::get('/{any}', function () {
+// Setup wizard route - only accessible if setup is not complete
+Route::get('/setup', function (SetupServiceInterface $setupService) {
+    if ($setupService->isSetupComplete()) {
+        return redirect('/');
+    }
+    return view('setup');
+})->name('setup');
+
+// Login route
+Route::get('/login', function (SetupServiceInterface $setupService) {
+    if (! $setupService->isSetupComplete()) {
+        return redirect('/setup');
+    }
     return view('app');
-})->where('any', '.*');
+})->name('login');
+
+// Catch-all for Vue.js SPA routing (protected routes)
+Route::get('/{any}', function (SetupServiceInterface $setupService) {
+    if (! $setupService->isSetupComplete()) {
+        return redirect('/setup');
+    }
+    return view('app');
+})->where('any', '^(?!api).*$');

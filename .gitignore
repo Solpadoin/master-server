@@ -36,3 +36,6 @@ auth.json
 
 # Cache
 /.phpunit.cache
+
+# Setup wizard state (environment-specific)
+/storage/app/.setup_complete

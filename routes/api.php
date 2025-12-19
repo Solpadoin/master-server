@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\GameServerController;
 use App\Http\Controllers\Api\V1\ServerHeartbeatController;
+use App\Http\Controllers\Api\V1\SetupController;
+use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\Admin\GameController;
 use App\Http\Controllers\Api\V1\Admin\InstanceController;
 
@@ -17,6 +19,41 @@ use App\Http\Controllers\Api\V1\Admin\InstanceController;
 */
 
 Route::prefix('v1')->group(function () {
+    /*
+    |--------------------------------------------------------------------------
+    | Setup Routes (Only available when setup is incomplete)
+    |--------------------------------------------------------------------------
+    */
+    Route::middleware(['setup.incomplete'])->prefix('setup')->group(function () {
+        Route::get('/status', [SetupController::class, 'status'])
+            ->name('api.v1.setup.status');
+
+        Route::post('/admin', [SetupController::class, 'createSuperAdmin'])
+            ->name('api.v1.setup.admin');
+
+        Route::get('/check-services', [SetupController::class, 'checkServices'])
+            ->name('api.v1.setup.check-services');
+
+        Route::post('/complete', [SetupController::class, 'complete'])
+            ->name('api.v1.setup.complete');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Authentication Routes
+    |--------------------------------------------------------------------------
+    */
+    Route::post('/auth/login', [AuthController::class, 'login'])
+        ->name('api.v1.auth.login');
+
+    Route::middleware(['auth:sanctum'])->group(function () {
+        Route::get('/auth/user', [AuthController::class, 'user'])
+            ->name('api.v1.auth.user');
+
+        Route::post('/auth/logout', [AuthController::class, 'logout'])
+            ->name('api.v1.auth.logout');
+    });
+
     /*
     |--------------------------------------------------------------------------
     | Public Client Routes (Read-Only)
