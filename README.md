@@ -163,4 +163,4 @@ docker-compose exec app php artisan test
 
 ## License
 
-GNU
+MIT
